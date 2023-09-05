@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.ejs": "html",
+        "*.js": "javascriptreact",
+        "linked_list.h": "c",
+        "time.h": "c"
+    }
+}
