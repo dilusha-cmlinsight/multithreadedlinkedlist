@@ -3,6 +3,7 @@
 #include <time.h>
 #include <pthread.h>
 #include <sys/time.h>
+#include <math.h>
 
 #include "linked_list.h"
 #include "mutex.h"
@@ -12,9 +13,13 @@ void *threadFunc_mtx(void* rank);
 
 
 unsigned long test_mutex_run(int case_num, int thread_count){
+
+    printf("%s %d\n", "mutex start", case_num);
     mutex_data thread_data;
 
     thread_data.head = NULL;
+
+    thread_data.thread_count = thread_count;
 
     //thread_data.thread_count = thread_count; // Number of threads 
     thread_data.m = 10000; //Number of operations
@@ -62,13 +67,15 @@ unsigned long test_mutex_run(int case_num, int thread_count){
     // Generate a linked list with n random numbers
     srand(time(0));
     while (count<n){
-        Insert(rand()%MAX, &thread_data.head);
-        count++ ;
+        int res = Insert(rand()%MAX, &thread_data.head);
+        count += res;
     }
 
     thread_data.Mem = (int) (thread_data.m * thread_data.mmem);
     thread_data.Ins = (int)(thread_data.m * thread_data.mins);
     thread_data.Del= (int)(thread_data.m * thread_data.mdel);
+
+    /* printf("%d, %d, %d\n", thread_data.Mem, thread_data.Ins, thread_data.Del); */
     
     // Initializing the mutex
     pthread_mutex_init(&thread_data.mutex, NULL);
@@ -80,7 +87,7 @@ unsigned long test_mutex_run(int case_num, int thread_count){
     gettimeofday(&start, NULL);
     //Assign work to threads
     for (int thread=0; thread < thread_count ; thread++){
-        thread_data.rank = thread;
+        /* thread_data.rank = thread; */
         pthread_create(&thread_handles[thread],NULL,threadFunc_mtx,(void*) &thread_data);
     }
 
@@ -91,6 +98,12 @@ unsigned long test_mutex_run(int case_num, int thread_count){
     }
 
     free(thread_handles);
+
+    printf("Memory OPerations: %d, Insert Operations: %d, Delete Operations: %d\n", thread_data.memOps, thread_data.insOps, thread_data.delOps);
+
+    thread_data.totOps = thread_data.memOps + thread_data.insOps + thread_data.delOps;
+    printf("Total OPerations: %d\n", thread_data.totOps);
+
     
     //Function call
     gettimeofday(&stop, NULL);
@@ -106,44 +119,48 @@ unsigned long test_mutex_run(int case_num, int thread_count){
 
 void *threadFunc_mtx(void * t_data){
     mutex_data* thread_data = t_data;
-    long my_rank = (long) thread_data->rank;
-    while (thread_data->totOps< thread_data->m){
+    /* long my_rank = (long) thread_data->rank; */
+
+    /* printf("mutex task"); */
+
+    int Mem = (int) round(thread_data->Mem / thread_data->thread_count);
+    int Ins = (int) round(thread_data->Ins / thread_data->thread_count);
+    int Del = (int) round(thread_data->Del / thread_data->thread_count);
+
+    int mem_finish_count = 0;
+    int ins_finish_count = 0;
+    int del_finish_count = 0;
+
+    /* printf("thread total %d, thread count %d\n", Mem+Ins+Del, thread_data->thread_count); */
+
+
+    while ((mem_finish_count+ins_finish_count+del_finish_count) < (Mem+Ins+Del)){
         
-        int rand_value = rand() % MAX;
+        /* int op = rand() % 3; */
+        /* printf("running"); */
 
-        int op = rand() % 3;
-
-        if (op==0 && thread_data->insOps < thread_data->Ins){
-            if (thread_data->totOps<thread_data->m){
-                pthread_mutex_lock(&thread_data->mutex);
-                short res = Insert(rand_value, &thread_data->head);
-                thread_data->insOps++;
-                thread_data->totOps++;
-                pthread_mutex_unlock(&thread_data->mutex);
-                //printf("Thread %ld Operation %d , Insert %d %d\n", thread_data->rank, thread_data->totOps, rand_value, res);
-            }
+        if (mem_finish_count < Mem){
+            pthread_mutex_lock(&thread_data->mutex);
+            short res = Member(rand() % MAX, &thread_data->head);
+            thread_data->memOps++;
+            mem_finish_count++;
+            pthread_mutex_unlock(&thread_data->mutex);
             
         }
-        else if(op==1 && thread_data->delOps < thread_data->Del){
-            if (thread_data->totOps<thread_data->m){
-                pthread_mutex_lock(&thread_data->mutex);
-                short res = Delete(rand_value, &thread_data->head);
-                thread_data->delOps++;
-                thread_data->totOps++;
-                pthread_mutex_unlock(&thread_data->mutex);
-                //printf("Thread %ld Operation %d , Delete %d %d\n", thread_data->rank, thread_data->totOps, rand_value, res);
-            }
+        if(ins_finish_count < Ins){
+            pthread_mutex_lock(&thread_data->mutex);
+            short res = Insert(rand() % MAX, &thread_data->head);
+            thread_data->insOps++;
+            ins_finish_count++;
+            pthread_mutex_unlock(&thread_data->mutex);
             
         }
-        else if(thread_data->memOps < thread_data->Mem){
-            if (thread_data->totOps<thread_data->m){
-                pthread_mutex_lock(&thread_data->mutex);
-                short res = Member(rand_value, &thread_data->head);
-                thread_data->memOps++;
-                thread_data->totOps++;
-                pthread_mutex_unlock(&thread_data->mutex);
-                //printf("Thread %ld Operation %d , Search %d %d\n", thread_data->rank, thread_data->totOps, rand_value, res); 
-            }
+        if(del_finish_count < Del){
+            pthread_mutex_lock(&thread_data->mutex);
+            short res = Delete(rand() % MAX, &thread_data->head);
+            thread_data->delOps++;
+            del_finish_count++;
+            pthread_mutex_unlock(&thread_data->mutex);
             
         }
     } 

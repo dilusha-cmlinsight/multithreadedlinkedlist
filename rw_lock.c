@@ -3,6 +3,7 @@
 #include <time.h>
 #include <pthread.h>
 #include <sys/time.h>
+#include <math.h>
 
 #include "linked_list.h"
 #include "rw_lock.h"
@@ -18,6 +19,8 @@ unsigned long test_rw_lock_run(int case_num, int thread_count){
 
     //thread_data.thread_count = thread_count; // Number of threads 
     thread_data.m = 10000; //Number of operations
+
+    thread_data.thread_count = thread_count;
 
     switch (case_num)
     {
@@ -62,8 +65,8 @@ unsigned long test_rw_lock_run(int case_num, int thread_count){
     // Generate a linked list with n random numbers
     srand(time(0));
     while (count<n){
-        Insert(rand()%MAX, &thread_data.head);
-        count++ ;
+        int res = Insert(rand()%MAX, &thread_data.head);
+        count += res ;
     }
 
     thread_data.Mem = (int) (thread_data.m * thread_data.mmem);
@@ -80,7 +83,7 @@ unsigned long test_rw_lock_run(int case_num, int thread_count){
     gettimeofday(&start, NULL); 
     //Assign work to threads
     for (int thread=0; thread<thread_count ; thread++){
-        thread_data.rank = thread;
+        /* thread_data.rank = thread; */
         pthread_create(&thread_handles[thread],NULL,threadFunc_rw,(void*) &thread_data);
     }
 
@@ -89,6 +92,11 @@ unsigned long test_rw_lock_run(int case_num, int thread_count){
     for (int thread=0; thread<thread_count ; thread++){
         pthread_join(thread_handles[thread],NULL);
     }
+
+    printf("Memory OPerations: %d, Insert Operations: %d, Delete Operations: %d\n", thread_data.memOps, thread_data.insOps, thread_data.delOps);
+
+    thread_data.totOps = thread_data.memOps + thread_data.insOps + thread_data.delOps;
+    printf("Total OPerations: %d\n", thread_data.totOps);
 
     free(thread_handles);
     
@@ -100,14 +108,70 @@ unsigned long test_rw_lock_run(int case_num, int thread_count){
     //printf("took %lu us\n", (stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec); 
 
     destructor(&thread_data.head);
-    printf("RW_lock ran!\n");
+    printf("RW_lock ran!\n\n");
     return time;
 }
 
 void *threadFunc_rw(void * t_data){
     rw_lock_data* thread_data = t_data;
-    long my_rank = (long) thread_data->rank;
-    while (thread_data->totOps< thread_data->m){
+    /* long my_rank = (long) thread_data->rank; */
+
+    int Mem = (int) round(thread_data->Mem / thread_data->thread_count);
+    int Ins = (int) round(thread_data->Ins / thread_data->thread_count);
+    int Del = (int) round(thread_data->Del / thread_data->thread_count);
+
+    int mem_finish_count = 0;
+    int ins_finish_count = 0;
+    int del_finish_count = 0;
+
+    while((mem_finish_count+ins_finish_count+del_finish_count) < (Mem+Ins+Del) ) {
+
+        if(mem_finish_count < Mem){
+            pthread_rwlock_rdlock(&thread_data->rwlock);
+            short res = Member(rand() % MAX, &thread_data->head);
+            thread_data->memOps++;
+            mem_finish_count++;
+            pthread_rwlock_unlock(&thread_data->rwlock);
+        }
+
+        if(ins_finish_count < Ins){
+            pthread_rwlock_wrlock(&thread_data->rwlock);
+            short res = Insert(rand() % MAX, &thread_data->head);
+            thread_data->insOps++;
+            ins_finish_count++;
+            pthread_rwlock_unlock(&thread_data->rwlock);
+        }
+
+        if(del_finish_count < Del){
+            pthread_rwlock_wrlock(&thread_data->rwlock);
+            short res = Insert(rand() % MAX, &thread_data->head);
+            thread_data->delOps++;
+            del_finish_count++;
+            pthread_rwlock_unlock(&thread_data->rwlock);
+        }
+
+    }
+
+
+
+    /* for (int i = 0; i < Mem; i++) {
+        int randomValue = rand() % 65536;
+        pthread_rwlock_rdlock(&rwlock);
+        short res = Member(rand_value, &thread_data->head);
+        pthread_rwlock_unlock(&rwlock);
+    }
+
+    for (int i = 0; i < Mem; i++) {
+        int randomValue = rand() % 65536;
+        pthread_rwlock_rdlock(&rwlock);
+        short res = Member(rand_value, &thread_data->head);
+        pthread_rwlock_unlock(&rwlock);
+    } */
+
+
+
+
+    /* while (thread_data->totOps< thread_data->m){
         
         int rand_value = rand() % MAX;
 
@@ -146,5 +210,5 @@ void *threadFunc_rw(void * t_data){
             }
             
         }
-    } 
+    }  */
 }

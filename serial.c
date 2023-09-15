@@ -62,13 +62,17 @@ unsigned long test_serial_run(int case_num)
     int n = 1000; // Number of initial elements of the linked list
     int count = 0;
 
+
     // Generate a linked list with n random numbers
     srand(time(0));
-    while (count < n)
-    {
-        Insert(rand() % MAX, &head);
-        count++;
+    while (count<n){
+        int res = Insert(rand()%MAX, &head);
+        count += res;
+        /* printf("count %d ", count); */
     }
+
+    /* printf("list creation end"); */
+
     struct timeval stop;
     struct timeval start;
     gettimeofday(&start, NULL);
@@ -76,31 +80,28 @@ unsigned long test_serial_run(int case_num)
     while (totOps < m)
     {
 
-        int rand_value = rand() % MAX;
-
-        int op = rand() % 3;
-
-        if (op == 0 && insOps < Ins)
+        if (insOps < Ins)
         {
-            short res = Insert(rand_value, &head);
+            short res = Insert(rand() % MAX, &head);
             insOps++;
             totOps++;
-            // printf("Operation %d , Insert %d %d\n", totOps, rand_value, res);
+            /* printf("Operation %d , Insert %d\n", totOps, res); */
         }
-        else if (op == 1 && delOps < Del)
+        if (delOps < Del)
         {
-            short res = Delete(rand_value, &head);
+            short res = Delete(rand() % MAX, &head);
             delOps++;
             totOps++;
             // printf("Operation %d , Delete %d %d\n", totOps, rand_value, res);
         }
-        else if (memOps < Mem)
+        if (memOps < Mem)
         {
-            short res = Member(rand_value, &head);
+            short res = Member(rand() % MAX, &head);
             memOps++;
             totOps++;
             // printf("Operation %d , Search %d %d\n", totOps, rand_value, res);
         }
+
     }
     gettimeofday(&stop, NULL);
     unsigned long time;
